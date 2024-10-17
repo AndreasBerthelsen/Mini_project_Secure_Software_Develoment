@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Azure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Mini_project_Secure_Software_Develoment.Helpers;
@@ -26,14 +27,13 @@ class Program
 
         // Set up dependency injection
         var serviceProvider = new ServiceCollection()
-    .AddDbContext<PasswordManagerContext>(options =>
-        options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")))
-    .AddScoped<IMasterPasswordRepo, MasterPasswordRepo>() // Register repository
-    .AddScoped<IPasswordRepo, PasswordRepo>() // Register repository
-    .AddScoped<MasterPasswordService, MasterPasswordService>() // Register service
-    .AddScoped<EncryptionService, EncryptionService>() // Register encryption service
-    .AddScoped<PasswordService, PasswordService>() // Register password service
-    .BuildServiceProvider();
+            .AddDbContext<PasswordManagerContext>(options =>
+                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")))
+            .AddScoped<IPasswordRepo, PasswordRepo>()
+            .AddScoped<EncryptionService>()
+            .AddScoped<MasterPasswordService>()
+            .AddScoped<PasswordService>()
+            .BuildServiceProvider();
 
 
         // Resolve services
@@ -63,33 +63,13 @@ public class PasswordManager
     public async Task RunAsync()
     {
         Console.WriteLine("Welcome to Password Manager!");
+        Console.WriteLine("Do you have a Master Password?");
+        Console.WriteLine("y/n");
+        string response = Console.ReadLine();
 
-        // Check if the master password is set
-        if (!await _masterPasswordService.IsMasterPasswordSetAsync())
-        {
-            await SetMasterPasswordAsync();
-        }
-        else
-        {
-            // Validate master password and get user input
-            await ValidateMasterPasswordAsync();
-        }
+        initialRun(response);
 
-        // Initialize encryption
-        string hashedMasterPassword = await _masterPasswordService.GetHashedMasterPasswordAsync();
-
-        Console.Write("Please enter your master password: ");
-        string masterPasswordInput = Console.ReadLine();
-
-        if (await _masterPasswordService.ValidateMasterPasswordAsync(masterPasswordInput))
-        {
-            Console.WriteLine("Welcome back.");
-        }
-        else
-        {
-            Console.WriteLine("Invalid master password. Exiting application.");
-            return;
-        }
+        Console.Clear();
 
         while (true)
         {
@@ -99,7 +79,7 @@ public class PasswordManager
             Console.WriteLine("3. Delete a password");
             Console.WriteLine("4. Delete master password and set new");
             Console.WriteLine("5. Exit");
-            Console.Write("Choose an option: ");
+            Console.WriteLine("Choose an option: ");
             var choice = Console.ReadLine();
 
             switch (choice)
@@ -118,7 +98,7 @@ public class PasswordManager
                     break;
                 case "5":
                     Console.WriteLine("Exiting application.");
-                    return; // Exit the application
+                    return;
                 default:
                     Console.WriteLine("Invalid option. Please try again.");
                     break;
@@ -126,15 +106,36 @@ public class PasswordManager
         }
     }
 
+    public void initialRun(string response)
+    {
+        switch (response)
+        {
+            case "y":
+                {
+                    ValidateMasterPasswordAsync();
+                    break;
+                }
+            case "n":
+                {
+                    SetMasterPasswordAsync();
+                    break;
+                }
+            default:
+                Console.WriteLine("Please only chose y or n!");
+                string answer = Console.ReadLine();
+                initialRun(answer);
+                break;
 
+        }
+    }
 
 
     private async Task SetMasterPasswordAsync()
     {
-        Console.Write("Set your new master password: ");
+        Console.WriteLine("Set your new master password: ");
         string newPassword = ReadPassword(); // Use the new method
 
-        Console.Write("Confirm your new master password: ");
+        Console.WriteLine("Confirm your new master password: ");
         string confirmPassword = ReadPassword(); // Use the new method
 
         if (string.IsNullOrWhiteSpace(newPassword))
@@ -164,8 +165,8 @@ public class PasswordManager
 
     private async Task ValidateMasterPasswordAsync()
     {
-        Console.Write("Enter your master password: ");
-        string password = ReadPassword(); // Use the new method
+        Console.WriteLine("Enter your master password: ");
+        string password = ReadPassword();
         bool isValid = await _masterPasswordService.ValidateMasterPasswordAsync(password);
 
         if (!isValid)
@@ -184,7 +185,7 @@ public class PasswordManager
 
         foreach (var entry in passwords)
         {
-            Console.WriteLine($"-{entry.Id}. {entry.App}: {entry.Password}");
+            Console.WriteLine($"Id:{entry.Id}. App:{entry.App} | {entry.Password}");
         }
 
         if (passwords == null || !passwords.Any())
@@ -195,7 +196,7 @@ public class PasswordManager
 
     private async Task AddNewPasswordAsync()
     {
-        Console.Write("Enter the name of the application: ");
+        Console.WriteLine("Enter the name of the application: ");
         string appName = Console.ReadLine();
 
         Console.WriteLine("Choose how to create a password:");
@@ -207,7 +208,7 @@ public class PasswordManager
 
         if (choice == "1")
         {
-            Console.Write("Enter your password: ");
+            Console.WriteLine("Enter your password: ");
             password = Console.ReadLine();
         }
         else
@@ -216,7 +217,6 @@ public class PasswordManager
             Console.WriteLine($"Generated password: {password}");
         }
 
-        // Store the password
         var passwordEntry = new PasswordEntry { App = appName, Password = password };
         await _passwordService.AddingEncryption(passwordEntry);
         Console.WriteLine("Password added successfully.");
@@ -224,16 +224,15 @@ public class PasswordManager
 
     private async Task DeletePasswordAsync()
     {
-        Console.Write("Enter the ID of the password entry you want to delete: ");
+        Console.WriteLine("Enter the ID of the password entry you want to delete: ");
         if (!int.TryParse(Console.ReadLine(), out int id))
         {
             Console.WriteLine("Invalid ID. Please enter a valid number.");
             return;
         }
 
-        // Ask for master password confirmation
-        Console.Write("Please enter your master password for confirmation: ");
-        string masterPassword = ReadPassword(); // Use the new method
+        Console.WriteLine("Please enter your master password for confirmation: ");
+        string masterPassword = ReadPassword();
 
         if (await _masterPasswordService.ValidateMasterPasswordAsync(masterPassword))
         {
@@ -249,18 +248,16 @@ public class PasswordManager
 
     private async Task DeleteMasterPasswordAsync()
     {
-        Console.Write("Please enter your master password for confirmation: ");
+        Console.WriteLine("Please enter your master password for confirmation: ");
         string masterPassword = ReadPassword();
 
         if (await _masterPasswordService.ValidateMasterPasswordAsync(masterPassword))
         {
-            var masterPasswordToDelete = await _masterPasswordService.GetMasterPasswordAsync();
+            _encryptionService.ResetKey();
 
-            await _masterPasswordService.DeleteMasterPasswordAsync(masterPasswordToDelete.Id); // Call to delete the master password
 
             Console.WriteLine("Master password has been removed successfully.");
 
-            // Restart the application after deletion
             RestartApplication();
         }
         else
@@ -271,13 +268,11 @@ public class PasswordManager
 
     private void RestartApplication()
     {
-        // Clear the console
         Console.Clear();
 
         Console.WriteLine("The master password has been deleted. You can set a new master password.");
 
-        // Here, you can call the method to set a new master password
-        SetMasterPasswordAsync().GetAwaiter().GetResult();
+        SetMasterPasswordAsync();
     }
 
     private string ReadPassword()
@@ -287,21 +282,21 @@ public class PasswordManager
 
         do
         {
-            keyInfo = Console.ReadKey(intercept: true); // Does not show the key pressed
+            keyInfo = Console.ReadKey(intercept: true);
             if (keyInfo.Key != ConsoleKey.Backspace && keyInfo.Key != ConsoleKey.Enter)
             {
                 passwordBuilder.Append(keyInfo.KeyChar);
-                Console.Write("*"); // Display '*' instead of the actual character
+                Console.Write("*");
             }
             else if (keyInfo.Key == ConsoleKey.Backspace && passwordBuilder.Length > 0)
             {
-                passwordBuilder.Remove(passwordBuilder.Length - 1, 1); // Remove the last character
-                Console.Write("\b \b"); // Handle backspace properly
+                passwordBuilder.Remove(passwordBuilder.Length - 1, 1);
+                Console.Write("\b \b");
             }
-        } while (keyInfo.Key != ConsoleKey.Enter); // Stop reading when Enter is pressed
+        } while (keyInfo.Key != ConsoleKey.Enter);
 
-        Console.WriteLine(); // Move to the next line after pressing Enter
-        return passwordBuilder.ToString(); // Return the actual password typed
+        Console.WriteLine();
+        return passwordBuilder.ToString();
     }
 
 

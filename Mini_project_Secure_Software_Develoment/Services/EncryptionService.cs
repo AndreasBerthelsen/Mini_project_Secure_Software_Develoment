@@ -10,19 +10,18 @@ namespace Mini_project_Secure_Software_Develoment.Services
 {
     public class EncryptionService
     {
-        private readonly IMasterPasswordRepo _repo;
         private byte[] _key;
 
         public byte[] Key => _key;
 
-        public EncryptionService(IMasterPasswordRepo repo)
+        public async Task ResetKey()
         {
-            _repo = repo;
+            _key = null;
         }
 
-        public async Task InitializeAsync(string masterPassword, byte[] salt)
+        public async Task InitializeAsync(string masterPassword)
         {
-            _key = Encryption.DeriveKey(masterPassword, salt);
+            _key = Encryption.DeriveKey(masterPassword);
         }
     }
 }

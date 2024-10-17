@@ -9,11 +9,10 @@ namespace Mini_project_Secure_Software_Develoment.Helpers
     public static class Encryption
     {
 
-        public static byte[] DeriveKey(string masterPassword, byte[] salt)
+        public static byte[] DeriveKey(string masterPassword)
         {
             using (var argon2 = new Argon2id(Encoding.UTF8.GetBytes(masterPassword)))
             {
-                argon2.Salt = salt;
                 argon2.DegreeOfParallelism = 1;
                 argon2.Iterations = 2;
                 argon2.MemorySize = 19456;
@@ -22,11 +21,10 @@ namespace Mini_project_Secure_Software_Develoment.Helpers
             }
         }
 
-        public static string EncryptString(string plainText, string masterPassword, byte[] salt)
+        public static string EncryptString(string plainText, byte[] key)
         {
             using (Aes aes = Aes.Create())
             {
-                var key = DeriveKey(masterPassword, salt);
                 aes.Key = key;
                 aes.IV = new byte[16];
 

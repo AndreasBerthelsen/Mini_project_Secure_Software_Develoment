@@ -11,8 +11,8 @@ using Mini_project_Secure_Software_Develoment.Repositories;
 namespace Mini_project_Secure_Software_Develoment.Migrations
 {
     [DbContext(typeof(PasswordManagerContext))]
-    [Migration("20241015201224_passwordDB4")]
-    partial class passwordDB4
+    [Migration("20241017202818_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -23,25 +23,6 @@ namespace Mini_project_Secure_Software_Develoment.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("Mini_project_Secure_Software_Develoment.Model.MasterPassword", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("KeySalt")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Password")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("MasterPasswords");
-                });
 
             modelBuilder.Entity("Mini_project_Secure_Software_Develoment.Model.PasswordEntry", b =>
                 {

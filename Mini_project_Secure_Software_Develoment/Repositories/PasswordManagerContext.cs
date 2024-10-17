@@ -15,7 +15,6 @@ namespace Mini_project_Secure_Software_Develoment.Repositories
         {
         }
 
-        public DbSet<MasterPassword> MasterPasswords { get; set; }
         public DbSet<PasswordEntry> Passwords { get; set; }
     }
 }

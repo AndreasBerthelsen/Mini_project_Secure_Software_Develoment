@@ -1,4 +1,5 @@
-﻿using Mini_project_Secure_Software_Develoment.Helpers;
+﻿using Microsoft.IdentityModel.Tokens;
+using Mini_project_Secure_Software_Develoment.Helpers;
 using Mini_project_Secure_Software_Develoment.Model;
 using Mini_project_Secure_Software_Develoment.Repositories;
 using Mini_project_Secure_Software_Develoment.Repositories.Interfaces;
@@ -12,85 +13,43 @@ namespace Mini_project_Secure_Software_Develoment.Services
 {
     public class MasterPasswordService 
     {
-        private readonly IMasterPasswordRepo _repo;
         private readonly EncryptionService _encryptionService;
+        private readonly IPasswordRepo _passwordRepo;
 
-        public MasterPasswordService(IMasterPasswordRepo repo, EncryptionService encryptionService )
+        public MasterPasswordService(EncryptionService encryptionService, IPasswordRepo passwordRepo )
         {
-            _repo = repo;
             _encryptionService = encryptionService;
+            _passwordRepo = passwordRepo;
         }
         
-        public async Task<bool> IsMasterPasswordSetAsync()
-        {
-            var masterPassword = await _repo.GetMasterPasswordAsync();
-            return masterPassword != null;
-        }
-
         public async Task SetMasterPasswordAsync(string password)
         {
-            byte[] keySalt = PasswordHelper.GenerateSalt();
-
-            string hashedMasterPassword = await PasswordHelper.HashPassword(password, keySalt);
 
             var masterPassword = new MasterPassword
             {
-                Password = hashedMasterPassword,
-                KeySalt = Convert.ToBase64String(keySalt),
+                Password = password,
             };
-            await _encryptionService.InitializeAsync(password, keySalt);
-            await _repo.AddMasterPasswordAsync(masterPassword);
+            await _encryptionService.InitializeAsync(masterPassword.Password);
         }
 
         public async Task<bool> ValidateMasterPasswordAsync(string password)
         {
-            var masterPassword = await _repo.GetMasterPasswordAsync();
-            if (masterPassword == null)
+            var passwords = await _passwordRepo.GetAllPasswordsAsync();
+            try
+            {
+                Encryption.DecryptString(passwords[0].Password, Encryption.DeriveKey(password));
+
+
+                await _encryptionService.InitializeAsync(password);
+
+                return true;
+            } catch (Exception ex)
             {
                 return false;
             }
-
-            byte[] KeySalt = Convert.FromBase64String(masterPassword.KeySalt);
-
-            if (await PasswordHelper.VerifyPassword(password, masterPassword.Password, KeySalt))
-            {
-                await _encryptionService.InitializeAsync(password, KeySalt);
-                return true;
-            }
-
-            return false;
+            
         }
 
-        public async Task<string> GetHashedMasterPasswordAsync()
-        {
-            var masterPassword = await _repo.GetMasterPasswordAsync();
-            if (masterPassword == null)
-            {
-                throw new InvalidOperationException("Master password not set.");
-            }
-
-            return masterPassword.Password; // Return the hashed password
-        }
-
-        public async Task<MasterPassword> GetMasterPasswordAsync()
-        {
-            return await _repo.GetMasterPasswordAsync();
-        }
-
-        
-
-        public async Task DeleteMasterPasswordAsync(int id)
-        {
-            var masterPasswordToDelete = await GetMasterPasswordAsync(); // Await here
-            if (masterPasswordToDelete != null && masterPasswordToDelete.Id == id)
-            {
-                await _repo.DeleteMasterPasswordAsync(masterPasswordToDelete.Id);
-            }
-            else
-            {
-                throw new InvalidOperationException("Master password not found or ID mismatch.");
-            }
-        }
 
     }
 }

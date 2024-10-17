@@ -21,21 +21,19 @@ namespace Mini_project_Secure_Software_Develoment.Helpers
             _encryptionService = encryptionService;
         }
 
-        public async Task<Task> AddingEncryption(PasswordEntry passwordEntry)
+        public async Task AddingEncryption(PasswordEntry passwordEntry)
         {
-            var masterPasswordFromDB = _masterPasswordService.GetMasterPasswordAsync().Result.Password;
-            var salt = GenerateSalt();
-            var encryptPassword = Encryption.EncryptString(passwordEntry.Password, masterPasswordFromDB, salt);
+            var key = _encryptionService.Key;
+            var encryptPassword = Encryption.EncryptString(passwordEntry.Password, key );
 
             var passwordDTO = new PasswordEntry
             {
                 App = passwordEntry.App,
                 Password = encryptPassword,
-                Salt = salt
+                Salt = GenerateSalt()
 
             };
-            var result = _passwordRepo.AddPasswordAsync(passwordDTO);
-            return result;
+            await _passwordRepo.AddPasswordAsync(passwordDTO);
         }
 
         public byte[] GenerateSalt()
@@ -71,6 +69,7 @@ namespace Mini_project_Secure_Software_Develoment.Helpers
             {
                 var passwordDTO = new PasswordEntry
                 {
+                    Id = password.Id,
                     App = password.App,
                     Password = Encryption.DecryptString(password.Password, key),
                 };
