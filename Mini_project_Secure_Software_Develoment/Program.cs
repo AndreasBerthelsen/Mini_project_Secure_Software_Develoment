@@ -133,10 +133,10 @@ public class PasswordManager
     private async Task SetMasterPasswordAsync()
     {
         Console.WriteLine("Set your new master password: ");
-        string newPassword = ReadPassword(); // Use the new method
+        string newPassword = ReadPassword(); 
 
         Console.WriteLine("Confirm your new master password: ");
-        string confirmPassword = ReadPassword(); // Use the new method
+        string confirmPassword = ReadPassword(); 
 
         if (string.IsNullOrWhiteSpace(newPassword))
         {
